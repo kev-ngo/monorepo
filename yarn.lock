@@ -3343,6 +3343,14 @@
   dependencies:
     "@types/istanbul-lib-report" "*"
 
+"@types/jaeger-client@^3.15.4":
+  version "3.15.4"
+  resolved "https://registry.yarnpkg.com/@types/jaeger-client/-/jaeger-client-3.15.4.tgz#7c7548c1bbdfbdb819df63afb230998ed2e298dc"
+  integrity sha512-DdA3jLT6VoAnn9/AI7DBOSXSFFM839f1dXvf/wTWcofs8ajcclEexGPEbELYfC3XuoEIWLPd7OmrqF/6mp4n/A==
+  dependencies:
+    opentracing "~0.14.3"
+    prom-client "~11.3.0"
+
 "@types/jest@26.0.8":
   version "26.0.8"
   resolved "https://registry.yarnpkg.com/@types/jest/-/jest-26.0.8.tgz#f5c5559cf25911ce227f7ce30f1f160f24966369"
@@ -5417,6 +5425,11 @@ bindings@^1.5.0:
   integrity sha512-p2q/t/mhvuOj/UeLlV6566GD/guowlr0hHxClI0W9m7MWYkL1F0hLo+0Aexs9HSPCtR1SXQ0TD3MMKrXZajbiQ==
   dependencies:
     file-uri-to-path "1.0.0"
+
+bintrees@1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/bintrees/-/bintrees-1.0.1.tgz#0e655c9b9c2435eaab68bf4027226d2b55a34524"
+  integrity sha1-DmVcm5wkNeqraL9AJyJtK1WjRSQ=
 
 bl@^4.0.0:
   version "4.1.0"
@@ -14010,6 +14023,11 @@ open@^7.0.2:
     is-docker "^2.0.0"
     is-wsl "^2.1.1"
 
+opentracing@~0.14.3:
+  version "0.14.5"
+  resolved "https://registry.yarnpkg.com/opentracing/-/opentracing-0.14.5.tgz#891fa92cd90a24e64f99bc964370227310926c85"
+  integrity sha512-XLKtEfHxqrWyF1fzxznsv78w3csW41ucHnjiKnfzZLD5FN8UBDZZL1i4q0FR29zjxXhm+2Hop+5Vr/b8tKIvEg==
+
 opn@^5.5.0:
   version "5.5.0"
   resolved "https://registry.yarnpkg.com/opn/-/opn-5.5.0.tgz#fc7164fab56d235904c51c3b27da6758ca3b9bfc"
@@ -15425,6 +15443,13 @@ progress@^2.0.0:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/progress/-/progress-2.0.3.tgz#7e8cf8d8f5b8f239c1bc68beb4eb78567d572ef8"
   integrity sha512-7PiHtLll5LdnKIMw100I+8xJXR5gW2QwWYkT6iJva0bXitZKa/XMrSbdmg3r2Xnaidz9Qumd0VPaMrZlF9V9sA==
+
+prom-client@~11.3.0:
+  version "11.3.0"
+  resolved "https://registry.yarnpkg.com/prom-client/-/prom-client-11.3.0.tgz#fe93f360182f1ec1921722efc211a6c0e68e0253"
+  integrity sha512-OqSf5WOvpGZXkfqPXUHNHpjrbEE/q8jxjktO0i7zg1cnULAtf0ET67/J5R4e4iA4MZx2260tzTzSFSWgMdTZmQ==
+  dependencies:
+    tdigest "^0.1.1"
 
 promise-inflight@^1.0.1:
   version "1.0.1"
@@ -17714,6 +17739,13 @@ tar@^4.0.2, tar@^4.4.10, tar@^4.4.12, tar@^4.4.8:
     mkdirp "^0.5.0"
     safe-buffer "^5.1.2"
     yallist "^3.0.3"
+
+tdigest@^0.1.1:
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/tdigest/-/tdigest-0.1.1.tgz#2e3cb2c39ea449e55d1e6cd91117accca4588021"
+  integrity sha1-Ljyyw56kSeVdHmzZEReszKRYgCE=
+  dependencies:
+    bintrees "1.0.1"
 
 temp-dir@^1.0.0:
   version "1.0.0"
