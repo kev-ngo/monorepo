@@ -181,12 +181,4 @@ export class Web3ApiClient implements Client {
 
     return api;
   }
-
-  public enableLogging(): void {
-    this._quiet = false;
-  }
-
-  public disableLogging(): void {
-    this._quiet = true;
-  }
 }
