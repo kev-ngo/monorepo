@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@web3api/manifest-schema": "0.0.1-prealpha.6",
+    "@web3api/logger": "0.0.1-prealpha.6",
     "graphql": "15.3.0",
     "graphql-tag": "2.10.4",
     "js-yaml": "3.14.0",
