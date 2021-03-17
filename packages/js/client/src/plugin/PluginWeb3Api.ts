@@ -28,7 +28,7 @@ export class PluginWeb3Api extends Api {
 
     this._tracer.setAttribute("uri", this._uri);
     this._tracer.setAttribute("plugin", this._plugin);
-    this._tracer.addEvent("created");
+    this._tracer.addEvent("Created");
 
     this._tracer.endSpan();
   }
@@ -71,12 +71,11 @@ export class PluginWeb3Api extends Api {
       }
     } catch (error) {
       this._tracer.recordException(error);
-      this._tracer.endSpan();
 
       throw error;
     }
 
-    this._tracer.addEvent("decoded", jsInput);
+    this._tracer.addEvent("Decoded", jsInput);
 
     try {
       const result = (await executeMaybeAsyncFunction(
@@ -85,7 +84,7 @@ export class PluginWeb3Api extends Api {
         client
       )) as TData;
 
-      this._tracer.addEvent("result", result);
+      this._tracer.addEvent("Result", result);
 
       if (result !== undefined) {
         let data = result as unknown;
@@ -94,7 +93,7 @@ export class PluginWeb3Api extends Api {
           data = filterResults(result, resultFilter);
         }
 
-        this._tracer.addEvent("filtered", data);
+        this._tracer.addEvent("Filtered result", data);
         this._tracer.endSpan();
 
         return {

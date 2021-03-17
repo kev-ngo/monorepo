@@ -19,13 +19,13 @@ class Web3APITracer {
     }
   }
 
-  startSpan = (spanName: string) => {
+  startSpan = (spanName: string): void => {
     if (!this.logEnabled) return;
 
     this._tracer.startSpan(spanName);
   };
 
-  setAttribute = (attrName: string, data: Object) => {
+  setAttribute = (attrName: string, data: unknown): void => {
     if (!this.logEnabled) return;
 
     const span = api.getSpan(api.context.active());
@@ -35,7 +35,7 @@ class Web3APITracer {
     }
   };
 
-  addEvent = (event: string, data?: any) => {
+  addEvent = (event: string, data?: unknown): void => {
     if (!this.logEnabled) return;
 
     const span = api.getSpan(api.context.active());
@@ -45,7 +45,7 @@ class Web3APITracer {
     }
   };
 
-  recordException = (error: api.Exception) => {
+  recordException = (error: api.Exception): void => {
     if (!this.logEnabled) return;
 
     const span = api.getSpan(api.context.active());
@@ -57,17 +57,19 @@ class Web3APITracer {
       // If the exception means the operation results in an
       // error state, you can also use it to update the span status.
       span.setStatus({ code: api.SpanStatusCode.ERROR });
+
+      span.end();
     }
   };
 
-  endSpan = () => {
+  endSpan = (): void => {
     if (!this.logEnabled) return;
 
     const span = api.getSpan(api.context.active());
     if (span) span.end();
   };
 
-  initProvider = () => {
+  initProvider = (): void => {
     const provider = new BasicTracerProvider();
 
     // Configure span processor to send spans to the exporter

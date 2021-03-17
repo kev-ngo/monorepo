@@ -22,6 +22,7 @@ import {
 } from "@web3api/core-js";
 import path from "path";
 import * as MsgPack from "@msgpack/msgpack";
+import Web3APILogger from "@web3api/logger";
 
 const Worker = require("web-worker");
 
@@ -34,6 +35,7 @@ const threadMutexes = new Int32Array(threadMutexesBuffer, 0, maxThreads);
 
 export class WasmWeb3Api extends Api {
   private _schema?: string;
+  private _tracer: Web3APILogger;
 
   private _wasm: {
     query?: ArrayBuffer;
@@ -43,9 +45,20 @@ export class WasmWeb3Api extends Api {
   constructor(
     private _uri: Uri,
     private _manifest: Manifest,
-    private _apiResolver: Uri
+    private _apiResolver: Uri,
+    private _logEnabled: boolean = false
   ) {
     super();
+
+    this._tracer = new Web3APILogger(this._logEnabled, "wasm-web3api");
+    this._tracer.startSpan("constructor");
+
+    this._tracer.setAttribute("uri", _uri);
+    this._tracer.setAttribute("manifest", _manifest);
+    this._tracer.setAttribute("apiResolver", _apiResolver);
+    this._tracer.addEvent("Created");
+
+    this._tracer.endSpan();
   }
 
   public async invoke(
@@ -53,6 +66,8 @@ export class WasmWeb3Api extends Api {
     client: Client
   ): Promise<InvokeApiResult<unknown | ArrayBuffer>> {
     const { module, method, input, decode } = options;
+
+    this._tracer.startSpan("invoke");
 
     // Fetch the WASM module
     const wasm = await this.getWasmModule(module, client);
@@ -65,6 +80,8 @@ export class WasmWeb3Api extends Api {
 
     threadsActive++;
     const threadId = threadAvailable++;
+
+    this._tracer.addEvent("Another thread available", threadId);
 
     // Wrap the queue
     if (threadAvailable >= maxThreads) {
@@ -135,6 +152,8 @@ export class WasmWeb3Api extends Api {
             }
           }
 
+          this._tracer.addEvent("Transfer done", { data, status });
+
           Atomics.store(
             threadMutexes,
             threadId,
@@ -147,6 +166,8 @@ export class WasmWeb3Api extends Api {
           "message",
           async (event: { data: HostAction }) => {
             const action = event.data;
+
+            this._tracer.addEvent("Worker message", action);
 
             switch (action.type) {
               case "Abort": {
@@ -232,6 +253,9 @@ export class WasmWeb3Api extends Api {
     worker.terminate();
     threadsActive--;
 
+    this._tracer.addEvent("Worker terminated", state);
+    this._tracer.endSpan();
+
     if (!state) {
       throw Error("WasmWeb3Api: query state was never set.");
     }
@@ -280,41 +304,55 @@ export class WasmWeb3Api extends Api {
     if (this._schema) {
       return this._schema;
     }
+    try {
+      this._tracer.startSpan("getSchema");
 
-    const module = this._manifest.query || this._manifest.mutation;
+      const module = this._manifest.query || this._manifest.mutation;
 
-    if (!module) {
-      // TODO: this won't work for abstract APIs
-      throw Error(`WasmWeb3Api: No module was found.`);
-    }
+      if (!module) {
+        // TODO: this won't work for abstract APIs
+        throw Error(`WasmWeb3Api: No module was found.`);
+      }
 
-    const { data, error } = await ApiResolver.Query.getFile(
-      client,
-      this._apiResolver,
-      path.join(this._uri.path, module.schema.file)
-    );
+      this._tracer.setAttribute("module", module);
 
-    if (error) {
+      const { data, error } = await ApiResolver.Query.getFile(
+        client,
+        this._apiResolver,
+        path.join(this._uri.path, module.schema.file)
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      // If nothing is returned, the schema was not found
+      if (!data) {
+        throw Error(
+          `WasmWeb3Api: Schema was not found.\nURI: ${this._uri}\nSubpath: ${module.schema.file}`
+        );
+      }
+
+      this._tracer.addEvent("Query file", data);
+
+      const decoder = new TextDecoder();
+      this._schema = decoder.decode(data);
+
+      if (!this._schema) {
+        throw Error(
+          `WasmWeb3Api: Decoding the schema's bytes array failed.\nBytes: ${data}`
+        );
+      }
+
+      this._tracer.addEvent("Decoded schema", this._schema);
+      this._tracer.endSpan();
+
+      return this._schema;
+    } catch (error) {
+      this._tracer.recordException(error);
+
       throw error;
     }
-
-    // If nothing is returned, the schema was not found
-    if (!data) {
-      throw Error(
-        `WasmWeb3Api: Schema was not found.\nURI: ${this._uri}\nSubpath: ${module.schema.file}`
-      );
-    }
-
-    const decoder = new TextDecoder();
-    this._schema = decoder.decode(data);
-
-    if (!this._schema) {
-      throw Error(
-        `WasmWeb3Api: Decoding the schema's bytes array failed.\nBytes: ${data}`
-      );
-    }
-
-    return this._schema;
   }
 
   private async getWasmModule(
@@ -324,33 +362,43 @@ export class WasmWeb3Api extends Api {
     if (this._wasm[module] !== undefined) {
       return this._wasm[module] as ArrayBuffer;
     }
+    try {
+      const moduleManifest = this._manifest[module];
 
-    const moduleManifest = this._manifest[module];
+      this._tracer.startSpan("getWasmModule");
 
-    if (!moduleManifest) {
-      throw Error(
-        `Package manifest does not contain a definition for module "${module}"`
+      if (!moduleManifest) {
+        throw Error(
+          `Package manifest does not contain a definition for module "${module}"`
+        );
+      }
+
+      const { data, error } = await ApiResolver.Query.getFile(
+        client,
+        this._apiResolver,
+        path.join(this._uri.path, moduleManifest.module.file)
       );
-    }
 
-    const { data, error } = await ApiResolver.Query.getFile(
-      client,
-      this._apiResolver,
-      path.join(this._uri.path, moduleManifest.module.file)
-    );
+      if (error) {
+        throw error;
+      }
 
-    if (error) {
+      // If nothing is returned, the module was not found
+      if (!data) {
+        throw Error(
+          `Module was not found.\nURI: ${this._uri}\nSubpath: ${moduleManifest.module.file}`
+        );
+      }
+
+      this._tracer.addEvent("Query file", data);
+      this._tracer.endSpan();
+
+      this._wasm[module] = data;
+      return data;
+    } catch (error) {
+      this._tracer.recordException(error);
+
       throw error;
     }
-
-    // If nothing is returned, the module was not found
-    if (!data) {
-      throw Error(
-        `Module was not found.\nURI: ${this._uri}\nSubpath: ${moduleManifest.module.file}`
-      );
-    }
-
-    this._wasm[module] = data;
-    return data;
   }
 }
