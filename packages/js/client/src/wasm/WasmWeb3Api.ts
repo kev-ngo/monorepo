@@ -22,7 +22,7 @@ import {
 } from "@web3api/core-js";
 import path from "path";
 import * as MsgPack from "@msgpack/msgpack";
-import Web3APILogger from "@web3api/logger";
+import Logger from "@web3api/logger";
 
 const Worker = require("web-worker");
 
@@ -35,7 +35,6 @@ const threadMutexes = new Int32Array(threadMutexesBuffer, 0, maxThreads);
 
 export class WasmWeb3Api extends Api {
   private _schema?: string;
-  private _tracer: Web3APILogger;
 
   private _wasm: {
     query?: ArrayBuffer;
@@ -45,20 +44,18 @@ export class WasmWeb3Api extends Api {
   constructor(
     private _uri: Uri,
     private _manifest: Manifest,
-    private _apiResolver: Uri,
-    private _logEnabled: boolean = false
+    private _apiResolver: Uri
   ) {
     super();
 
-    this._tracer = new Web3APILogger(this._logEnabled, "wasm-web3api");
-    this._tracer.startSpan("constructor");
+    Logger.startSpan("WasmWeb3Api constructor");
 
-    this._tracer.setAttribute("uri", _uri);
-    this._tracer.setAttribute("manifest", _manifest);
-    this._tracer.setAttribute("apiResolver", _apiResolver);
-    this._tracer.addEvent("Created");
+    Logger.setAttribute("uri", _uri);
+    Logger.setAttribute("manifest", _manifest);
+    Logger.setAttribute("apiResolver", _apiResolver);
+    Logger.addEvent("Created");
 
-    this._tracer.endSpan();
+    Logger.endSpan();
   }
 
   public async invoke(
@@ -67,7 +64,7 @@ export class WasmWeb3Api extends Api {
   ): Promise<InvokeApiResult<unknown | ArrayBuffer>> {
     const { module, method, input, decode } = options;
 
-    this._tracer.startSpan("invoke");
+    Logger.startSpan("invoke");
 
     // Fetch the WASM module
     const wasm = await this.getWasmModule(module, client);
@@ -81,7 +78,7 @@ export class WasmWeb3Api extends Api {
     threadsActive++;
     const threadId = threadAvailable++;
 
-    this._tracer.addEvent("Another thread available", threadId);
+    Logger.addEvent("Another thread available", threadId);
 
     // Wrap the queue
     if (threadAvailable >= maxThreads) {
@@ -152,7 +149,7 @@ export class WasmWeb3Api extends Api {
             }
           }
 
-          this._tracer.addEvent("Transfer done", { data, status });
+          Logger.addEvent("Transfer done", { data, status });
 
           Atomics.store(
             threadMutexes,
@@ -167,7 +164,7 @@ export class WasmWeb3Api extends Api {
           async (event: { data: HostAction }) => {
             const action = event.data;
 
-            this._tracer.addEvent("Worker message", action);
+            Logger.addEvent("Worker message", action);
 
             switch (action.type) {
               case "Abort": {
@@ -253,8 +250,8 @@ export class WasmWeb3Api extends Api {
     worker.terminate();
     threadsActive--;
 
-    this._tracer.addEvent("Worker terminated", state);
-    this._tracer.endSpan();
+    Logger.addEvent("Worker terminated", state);
+    Logger.endSpan();
 
     if (!state) {
       throw Error("WasmWeb3Api: query state was never set.");
@@ -305,7 +302,7 @@ export class WasmWeb3Api extends Api {
       return this._schema;
     }
     try {
-      this._tracer.startSpan("getSchema");
+      Logger.startSpan("getSchema");
 
       const module = this._manifest.query || this._manifest.mutation;
 
@@ -314,7 +311,7 @@ export class WasmWeb3Api extends Api {
         throw Error(`WasmWeb3Api: No module was found.`);
       }
 
-      this._tracer.setAttribute("module", module);
+      Logger.setAttribute("module", module);
 
       const { data, error } = await ApiResolver.Query.getFile(
         client,
@@ -333,7 +330,7 @@ export class WasmWeb3Api extends Api {
         );
       }
 
-      this._tracer.addEvent("Query file", data);
+      Logger.addEvent("Query file", data);
 
       const decoder = new TextDecoder();
       this._schema = decoder.decode(data);
@@ -344,12 +341,12 @@ export class WasmWeb3Api extends Api {
         );
       }
 
-      this._tracer.addEvent("Decoded schema", this._schema);
-      this._tracer.endSpan();
+      Logger.addEvent("Decoded schema", this._schema);
+      Logger.endSpan();
 
       return this._schema;
     } catch (error) {
-      this._tracer.recordException(error);
+      Logger.recordException(error);
 
       throw error;
     }
@@ -365,7 +362,7 @@ export class WasmWeb3Api extends Api {
     try {
       const moduleManifest = this._manifest[module];
 
-      this._tracer.startSpan("getWasmModule");
+      Logger.startSpan("getWasmModule");
 
       if (!moduleManifest) {
         throw Error(
@@ -390,13 +387,13 @@ export class WasmWeb3Api extends Api {
         );
       }
 
-      this._tracer.addEvent("Query file", data);
-      this._tracer.endSpan();
+      Logger.addEvent("Query file", data);
+      Logger.endSpan();
 
       this._wasm[module] = data;
       return data;
     } catch (error) {
-      this._tracer.recordException(error);
+      Logger.recordException(error);
 
       throw error;
     }

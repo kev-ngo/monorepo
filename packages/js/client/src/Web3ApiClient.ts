@@ -19,7 +19,7 @@ import {
   Manifest,
   sanitizeUriRedirects,
 } from "@web3api/core-js";
-import Web3APITracer from "@web3api/logger";
+import Logger from "@web3api/logger";
 
 export interface ClientConfig<TUri = string> {
   redirects: UriRedirect<TUri>[];
@@ -33,8 +33,6 @@ export class Web3ApiClient implements Client {
   private _apiCache: ApiCache = new Map<string, Api>();
   private _config: ClientConfig<Uri>;
 
-  private _tracer: Web3APITracer;
-
   constructor(config: ClientConfig, private _logEnabled: boolean = false) {
     this._config = {
       ...config,
@@ -44,14 +42,24 @@ export class Web3ApiClient implements Client {
     // Add all default redirects (IPFS, ETH, ENS)
     this._config.redirects.push(...getDefaultRedirects());
 
-    this._tracer = new Web3APITracer(this._logEnabled, "web3api-client");
+    if (this._logEnabled) {
+      this.enableLogging();
+    }
 
-    this._tracer.startSpan("constructor");
+    Logger.startSpan("constructor");
 
-    this._tracer.setAttribute("config", this._config);
-    this._tracer.addEvent("Created");
+    Logger.setAttribute("config", this._config);
+    Logger.addEvent("Created");
 
-    this._tracer.endSpan();
+    Logger.endSpan();
+  }
+
+  public enableLogging(): void {
+    Logger.enableLogging("web3api-client");
+  }
+
+  public disableLogging(): void {
+    Logger.disableLogging();
   }
 
   public redirects(): readonly UriRedirect<Uri>[] {
@@ -67,9 +75,9 @@ export class Web3ApiClient implements Client {
     try {
       const { uri, query, variables } = options;
 
-      this._tracer.startSpan("query");
+      Logger.startSpan("query");
 
-      this._tracer.setAttribute("options", options);
+      Logger.setAttribute("options", options);
 
       // Convert the query string into a query document
       const queryDocument =
@@ -100,7 +108,7 @@ export class Web3ApiClient implements Client {
       // Await the invocations
       const invocations = await Promise.all(parallelInvocations);
 
-      this._tracer.addEvent("Invocations finished", invocations);
+      Logger.addEvent("Invocations finished", invocations);
 
       // Aggregate all invocation results
       let methods: string[] = [];
@@ -136,17 +144,17 @@ export class Web3ApiClient implements Client {
         data[methods[i]] = resultDatas[i];
       }
 
-      this._tracer.setAttribute("methods", methods);
-      this._tracer.setAttribute("data", data);
+      Logger.setAttribute("methods", methods);
+      Logger.setAttribute("data", data);
 
-      this._tracer.endSpan();
+      Logger.endSpan();
 
       return {
         data: data as TData,
         errors: errors.length === 0 ? undefined : errors,
       };
     } catch (error) {
-      this._tracer.recordException(error);
+      Logger.recordException(error);
 
       if (error.length) {
         return { errors: error };
@@ -162,14 +170,14 @@ export class Web3ApiClient implements Client {
     try {
       const uri = new Uri(options.uri);
 
-      this._tracer.startSpan("invoke");
+      Logger.startSpan("invoke");
 
-      this._tracer.setAttribute("options", options);
+      Logger.setAttribute("options", options);
 
       const api = await this.loadWeb3Api(uri);
 
-      this._tracer.addEvent("Load web3api", api);
-      this._tracer.endSpan();
+      Logger.addEvent("Load web3api", api);
+      Logger.endSpan();
 
       return (await api.invoke(
         {
@@ -179,7 +187,7 @@ export class Web3ApiClient implements Client {
         this
       )) as TData;
     } catch (error) {
-      this._tracer.recordException(error);
+      Logger.recordException(error);
 
       return { error: error };
     }
@@ -188,21 +196,20 @@ export class Web3ApiClient implements Client {
   public async loadWeb3Api(uri: Uri): Promise<Api> {
     let api = this._apiCache.get(uri.uri);
 
-    this._tracer.startSpan("loadWeb3Api");
+    Logger.startSpan("loadWeb3Api");
 
-    this._tracer.setAttribute("uri", uri);
+    Logger.setAttribute("uri", uri);
 
     if (!api) {
       api = await resolveUri(
         uri,
         this,
-        (uri: Uri, plugin: PluginPackage) =>
-          new PluginWeb3Api(uri, plugin, this._logEnabled),
+        (uri: Uri, plugin: PluginPackage) => new PluginWeb3Api(uri, plugin),
         (uri: Uri, manifest: Manifest, apiResolver: Uri) =>
-          new WasmWeb3Api(uri, manifest, apiResolver, this._logEnabled)
+          new WasmWeb3Api(uri, manifest, apiResolver)
       );
 
-      this._tracer.addEvent("Resolve uri", api);
+      Logger.addEvent("Resolve uri", api);
 
       if (!api) {
         throw Error(`Unable to resolve Web3API at uri: ${uri}`);
@@ -211,7 +218,7 @@ export class Web3ApiClient implements Client {
       this._apiCache.set(uri.uri, api);
     }
 
-    this._tracer.endSpan();
+    Logger.endSpan();
 
     return api;
   }

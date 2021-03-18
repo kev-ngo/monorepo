@@ -5,27 +5,30 @@ import {
 } from "@opentelemetry/tracing";
 import * as api from "@opentelemetry/api";
 
-class Web3APITracer {
-  private _tracer: api.Tracer;
+class Logger {
+  public static logEnabled = false;
 
-  constructor(
-    public logEnabled: boolean = false,
-    public tracerName: string = ""
-  ) {
-    if (logEnabled) {
-      this.initProvider();
+  private static _tracer: api.Tracer;
+  private static _provider: BasicTracerProvider | null = null;
 
-      this._tracer = api.trace.getTracer(tracerName);
-    }
+  static enableLogging(tracerName: string): void {
+    this.logEnabled = true;
+    this.initProvider();
+
+    this._tracer = api.trace.getTracer(tracerName);
   }
 
-  startSpan = (spanName: string): void => {
+  static disableLogging(): void {
+    this.logEnabled = false;
+  }
+
+  static startSpan(spanName: string): void {
     if (!this.logEnabled) return;
 
     this._tracer.startSpan(spanName);
-  };
+  }
 
-  setAttribute = (attrName: string, data: unknown): void => {
+  static setAttribute(attrName: string, data: unknown): void {
     if (!this.logEnabled) return;
 
     const span = api.getSpan(api.context.active());
@@ -33,9 +36,9 @@ class Web3APITracer {
     if (span) {
       span.setAttribute(attrName, JSON.stringify(data));
     }
-  };
+  }
 
-  addEvent = (event: string, data?: unknown): void => {
+  static addEvent(event: string, data?: unknown): void {
     if (!this.logEnabled) return;
 
     const span = api.getSpan(api.context.active());
@@ -43,9 +46,9 @@ class Web3APITracer {
     if (span) {
       span.addEvent(event, { data: JSON.stringify(data) });
     }
-  };
+  }
 
-  recordException = (error: api.Exception): void => {
+  static recordException(error: api.Exception): void {
     if (!this.logEnabled) return;
 
     const span = api.getSpan(api.context.active());
@@ -60,25 +63,27 @@ class Web3APITracer {
 
       span.end();
     }
-  };
+  }
 
-  endSpan = (): void => {
+  static endSpan(): void {
     if (!this.logEnabled) return;
 
     const span = api.getSpan(api.context.active());
     if (span) span.end();
-  };
+  }
 
-  initProvider = (): void => {
-    const provider = new BasicTracerProvider();
+  static initProvider(): void {
+    if (this._provider) return;
+
+    this._provider = new BasicTracerProvider();
 
     // Configure span processor to send spans to the exporter
-    provider.addSpanProcessor(
+    this._provider.addSpanProcessor(
       new SimpleSpanProcessor(new ConsoleSpanExporter())
     );
 
-    provider.register();
-  };
+    this._provider.register();
+  }
 }
 
-export default Web3APITracer;
+export default Logger;
